@@ -1,13 +1,15 @@
+/// <reference types="web-bluetooth" />
+
 import { Injectable } from '@angular/core';
-
 import { Platform } from '@ionic/angular';
-
-import { NextObserver, Observable, Subject, empty, from } from 'rxjs';
+import { EMPTY, from, NextObserver, Observable, Observer, Subject, Subscriber } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 
-import { Backend } from './backend';
 import { DataView, Peripheral } from '../carrera';
 import { LoggingService } from '../services';
+
+import { Backend } from './backend';
+import { AnonymousSubject } from 'rxjs/internal-compatibility';
 
 const SERVICE_UUID = '39df7777-b1b4-b90b-57f1-7144ae4e4a6a';
 const OUTPUT_UUID = '39df8888-b1b4-b90b-57f1-7144ae4e4a6a';
@@ -15,47 +17,47 @@ const NOTIFY_UUID = '39df9999-b1b4-b90b-57f1-7144ae4e4a6a';
 
 const DOLLAR = '$'.charCodeAt(0);
 
-function bufferToString(buffer: ArrayBuffer) {
+function bufferToString(buffer: ArrayBuffer): string {
   // TODO: special DataView.convertToString() method?
-  const v = new DataView(buffer);
-  return v.toString();
+  return new DataView(buffer).toString();
 }
 
 class WebBluetoothPeripheral implements Peripheral {
-
   type = 'web-bluetooth';
 
   name: string;
 
-  output: Promise<any>;
+  output: Promise<BluetoothRemoteGATTCharacteristic>;
 
   lastWritten: string;
 
-  constructor(private device: any, private logger: LoggingService) {
+  constructor(private device: BluetoothDevice, private logger: LoggingService) {
     this.name = device.name;
   }
 
-  connect(connected?: NextObserver<void>, disconnected?: NextObserver<void>) {
-    const observable = this.createObservable(connected, disconnected)
+  connect(connected?: NextObserver<void>, disconnected?: NextObserver<void>): Subject<ArrayBuffer> {
+    const observable = this.createObservable(connected, disconnected);
     const observer = this.createObserver(disconnected);
-    return Subject.create(observer, observable);
+    return new AnonymousSubject(observer, observable);
   }
 
-  equals(other: Peripheral) {
+  equals(other: Peripheral): boolean {
     return other && other.type === this.type;
   }
 
-  private createObservable(connected?: NextObserver<void>, disconnected?: NextObserver<void>) {
-    return new Observable<ArrayBuffer>(subscriber => {
+  private createObservable(connected?: NextObserver<void>, disconnected?: NextObserver<void>): Observable<ArrayBuffer> {
+    return new Observable<ArrayBuffer>((subscriber: Subscriber<ArrayBuffer>) => {
       this.logger.info('Connecting to Web Bluetooth device ' + this.device.id);
-      const service = this.device.gatt.connect().then(server => {
+      const service: Promise<BluetoothRemoteGATTService> = this.device.gatt.connect().then((server: BluetoothRemoteGATTServer) => {
         return server.getPrimaryService(SERVICE_UUID);
       });
-      const notify = service.then(s => s.getCharacteristic(NOTIFY_UUID));
-      const eventListener = (event) => {
+      const notify: Promise<BluetoothRemoteGATTCharacteristic> = service.then((s: BluetoothRemoteGATTService) =>
+        s.getCharacteristic(NOTIFY_UUID)
+      );
+      const eventListener: EventListenerOrEventListenerObject = (event: Event & { target: BluetoothRemoteGATTCharacteristic }) => {
         const data = event.target.value.buffer;
         if (this.logger.isDebugEnabled()) {
-          const s = bufferToString(data);
+          const s: string = bufferToString(data);
           if (s !== lastReceived) {
             this.logger.debug('Web Bluetooth received ' + s);
             lastReceived = s;
@@ -63,60 +65,69 @@ class WebBluetoothPeripheral implements Peripheral {
         }
         this.onNotify(data, subscriber);
       };
-      let lastReceived = null;
+      let lastReceived: string = null;
       this.lastWritten = null;
-      this.output = service.then(s => s.getCharacteristic(OUTPUT_UUID));
-      notify.then(characteristic => {
-        return characteristic.startNotifications().then(_ => characteristic);
-      }).then(characteristic => {
-        characteristic.addEventListener('characteristicvaluechanged', eventListener);
-        this.logger.info('Web Bluetooth device ready');
-        if (connected) {
-          connected.next(undefined);
-        }
-      }).catch(error => {
-        this.onError(error, subscriber);
-      });
-      return () => {
-        notify.then(characteristic => {
-          return characteristic.stopNotifications().then(_ => characteristic);
-        }).then(characteristic => {
-            characteristic.removeEventListener('characteristicvaluechanged', eventListener);
-        }).catch(error => {
-            this.logger.error('Error stopping Web Bluetooth notifications', error);
-        }).then(_ => {
-          this.disconnect(disconnected);
+      this.output = service.then((s: BluetoothRemoteGATTService) => s.getCharacteristic(OUTPUT_UUID));
+      notify
+        .then((characteristic: BluetoothRemoteGATTCharacteristic) => {
+          return characteristic.startNotifications().then((_: BluetoothRemoteGATTCharacteristic) => characteristic);
+        })
+        .then((characteristic: BluetoothRemoteGATTCharacteristic) => {
+          characteristic.addEventListener('characteristicvaluechanged', eventListener);
+          this.logger.info('Web Bluetooth device ready');
+          if (connected) {
+            connected.next(undefined);
+          }
+        })
+        .catch(error => {
+          this.onError(error, subscriber);
         });
+      return () => {
+        notify
+          .then((characteristic: BluetoothRemoteGATTCharacteristic) => {
+            return characteristic.stopNotifications().then((_: BluetoothRemoteGATTCharacteristic) => characteristic);
+          })
+          .then((characteristic: BluetoothRemoteGATTCharacteristic) => {
+            characteristic.removeEventListener('characteristicvaluechanged', eventListener);
+          })
+          .catch((error: Error) => {
+            this.logger.error('Error stopping Web Bluetooth notifications', error);
+          })
+          .then(_ => {
+            this.disconnect(disconnected);
+          });
       };
     });
   }
 
-  private createObserver(disconnected?: NextObserver<void>) {
+  private createObserver(disconnected?: NextObserver<void>): Observer<ArrayBuffer> {
     return {
       next: (value: ArrayBuffer) => {
         if (this.device.gatt.connected && this.output) {
           if (this.logger.isDebugEnabled()) {
-            const s = bufferToString(value);
+            const s: string = bufferToString(value);
             if (s !== this.lastWritten) {
               this.logger.debug('Web Bluetooth write ' + s);
               this.lastWritten = s;
             }
           }
-          this.output.then(characteristic => {
-            return characteristic.writeValue(value);
-          }).catch(error => {
-            this.logger.error('Web Bluetooth write error', error);
-          });
+          this.output
+            .then((characteristic: BluetoothRemoteGATTCharacteristic) => {
+              return characteristic.writeValue(value);
+            })
+            .catch((error: Error) => {
+              this.logger.error('Web Bluetooth write error', error);
+            });
         } else {
           this.logger.error('Web Bluetooth write while device disconnected');
         }
       },
-      error: (err: any) => this.logger.error('Web Bluetooth user error', err),
-      complete: () => this.disconnect(disconnected)
+      error: (err: Error) => this.logger.error('Web Bluetooth user error', err),
+      complete: () => this.disconnect(disconnected),
     };
   }
 
-  private disconnect(disconnected?: NextObserver<void>) {
+  private disconnect(disconnected?: NextObserver<void>): void {
     if (this.device.gatt.connected) {
       this.logger.debug('Closing Web Bluetooth connection to ' + this.device.id);
       try {
@@ -131,62 +142,63 @@ class WebBluetoothPeripheral implements Peripheral {
     }
   }
 
-  private onNotify(data, subscriber) {
+  private onNotify(data: ArrayBuffer, subscriber: Subscriber<ArrayBuffer>): void {
     // strip trailing '$' and prepend missing '0'/'?' for notifications
     // TODO: only handle version specially and drop '?'?
     const view = new Uint8Array(data);
-    if (view[view.length - 1] == DOLLAR) {
+    if (view[view.length - 1] === DOLLAR) {
       view.copyWithin(1, 0);
-      view[0] = view.length == 6 ? 0x30 : 0x3f;
+      view[0] = view.length === 6 ? 0x30 : 0x3f;
     }
     subscriber.next(view.buffer);
   }
 
-  private onError(error, subscriber) {
+  private onError(error: Error, subscriber: Subscriber<ArrayBuffer>): void {
     subscriber.error(error);
   }
 }
 
 @Injectable()
 export class WebBluetoothBackend extends Backend {
+  private navigator: Navigator = window.navigator;
 
-  private navigator: any = window.navigator;
-
-  private device: Promise<any>;
+  private device: Promise<WebBluetoothPeripheral>;
 
   constructor(private logger: LoggingService, private platform: Platform) {
     super();
   }
 
-  scan(): Observable<Peripheral> {
+  scan(): Observable<WebBluetoothPeripheral> {
     return from(this.platform.ready()).pipe(
-      switchMap(readySource => {
-        if (readySource != 'cordova' && this.navigator.bluetooth) {
+      switchMap((readySource: string) => {
+        if (readySource !== 'cordova' && this.navigator.bluetooth) {
           return from(this.requestDevice()).pipe(
             catchError(err => {
               this.logger.error('Error requesting Web Bluetooth device:', err);
-              return empty();
+              return EMPTY;
             })
           );
         } else {
-          return empty();
+          return EMPTY;
         }
       })
     );
   }
 
-  private requestDevice(): Promise<any> {
+  private requestDevice(): Promise<WebBluetoothPeripheral> {
     if (this.device) {
-      return this.device;  // avoid multiple pop-up dialogs
+      return this.device; // avoid multiple pop-up dialogs
     } else {
-      return this.navigator.bluetooth.requestDevice({
-        filters: [{ name: 'Control_Unit' }],
-        optionalServices: [SERVICE_UUID]
-      }).then(device => {
-        const p = new WebBluetoothPeripheral(device, this.logger);
-        this.device = Promise.resolve(p);
-        return p;
-      });
+      return this.navigator.bluetooth
+        .requestDevice({
+          filters: [{ name: 'Control_Unit' }],
+          optionalServices: [SERVICE_UUID],
+        })
+        .then((device: BluetoothDevice) => {
+          const p = new WebBluetoothPeripheral(device, this.logger);
+          this.device = Promise.resolve(p);
+          return p;
+        });
     }
   }
 }

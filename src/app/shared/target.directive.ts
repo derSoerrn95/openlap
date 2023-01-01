@@ -4,12 +4,11 @@ import { Directive, HostListener, Input } from '@angular/core';
   selector: 'a[target]',
 })
 export class TargetDirective {
-
   @Input() target: string;
 
   @Input() href: string;
 
-  @HostListener('click') onClick() {
+  @HostListener('click') onClick(): boolean {
     window.open(this.href, this.target);
     return false;
   }

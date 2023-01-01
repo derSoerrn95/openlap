@@ -1,7 +1,8 @@
 {
   "name": "Open Lap",
   "integrations": {
-    "cordova": {}
+    "cordova": {},
+    "capacitor": {}
   },
   "type": "angular",
   "id": "6d4a7659"

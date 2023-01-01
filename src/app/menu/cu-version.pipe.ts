@@ -1,6 +1,6 @@
 import { Injectable, Pipe, PipeTransform } from '@angular/core';
 
-@Pipe({name: 'cuversion', pure: true})
+@Pipe({ name: 'cuversion', pure: true })
 @Injectable()
 export class CuVersionPipe implements PipeTransform {
   transform(value: string): string {

@@ -1,14 +1,12 @@
 import { Component, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
-
 import { ModalController, NavController } from '@ionic/angular';
-
 import { take } from 'rxjs/operators';
 
-import { AppSettings } from '../app-settings';
+import { AppSettings, RaceOptions } from '../app-settings';
 import { ControlUnit } from '../carrera';
+import { ColorsPage, DriversPage } from '../drivers';
 import { RaceSettingsPage } from '../rms';
 import { AppService, I18nAlertService, LoggingService } from '../services';
-import { ColorsPage, DriversPage } from '../drivers';
 import { SettingsPage } from '../settings';
 import { TuningPage } from '../tuning';
 
@@ -16,10 +14,9 @@ import { ConnectionsComponent } from './connections.component';
 
 @Component({
   selector: 'menu',
-  templateUrl: 'menu.component.html'
+  templateUrl: 'menu.component.html',
 })
 export class MenuComponent implements OnChanges {
-
   @Input() cu: ControlUnit;
 
   mode: boolean;
@@ -28,16 +25,16 @@ export class MenuComponent implements OnChanges {
 
   version: Promise<string>;
 
-  exitApp: () => void = null;
+  exitApp: () => void;
 
   colorsPage = ColorsPage;
   driversPage = DriversPage;
   settingsPage = SettingsPage;
   tuningPage = TuningPage;
 
-  initialized = false;
+  initialized: boolean = false;
 
-  @ViewChild(ConnectionsComponent) connections : ConnectionsComponent;
+  @ViewChild(ConnectionsComponent) connections: ConnectionsComponent;
 
   constructor(
     private app: AppService,
@@ -45,24 +42,24 @@ export class MenuComponent implements OnChanges {
     private settings: AppSettings,
     private alert: I18nAlertService,
     private modal: ModalController,
-    private nav: NavController)
-  {
+    private nav: NavController
+  ) {
     if (app.exit) {
       this.exitApp = () => this.onExitApp();
     }
   }
 
-  ngOnChanges(changes: SimpleChanges) {
+  ngOnChanges(changes: SimpleChanges): void {
     if ('cu' in changes) {
       this.mode = !!this.cu;
       this.version = this.cu ? this.cu.getVersion() : Promise.resolve(undefined);
     }
   }
 
-  onMenuOpen() {
+  onMenuOpen(): void {
     // Web Bluetooth workaround - needs user gesture for scanning
     if (!this.initialized && this.connections) {
-      if ((<any>navigator).bluetooth) {
+      if (navigator['bluetooth']) {
         this.connections.ngOnInit();
       }
       this.initialized = true;
@@ -70,16 +67,16 @@ export class MenuComponent implements OnChanges {
     this.open = true;
   }
 
-  onMenuClose() {
+  onMenuClose(): void {
     this.mode = !!this.cu;
     this.open = false;
   }
 
-  onMenuToggle() {
+  onMenuToggle(): void {
     this.mode = !this.mode;
   }
 
-  reconnect() {
+  reconnect(): void {
     if (this.cu) {
       this.logger.info('Reconnecting to', this.cu.peripheral);
       this.cu.reconnect().then(() => {
@@ -88,67 +85,85 @@ export class MenuComponent implements OnChanges {
     }
   }
 
-  startPractice() {
+  startPractice(): Promise<boolean> {
     return this.nav.navigateRoot('rms/practice');
   }
 
-  startQualifying() {
-    this.settings.getQualifyingSettings().pipe(take(1)).subscribe((options) => {
-      return this.modal.create({
-        component: RaceSettingsPage, 
-        componentProps: options
-      }).then(modal => {
-        modal.onDidDismiss().then(detail => {
-          if (detail.data) {
-            this.settings.setQualifyingSettings(detail.data).then(() => {
-              this.nav.navigateRoot('rms/qualifying');
+  startQualifying(): void {
+    this.settings
+      .getQualifyingSettings()
+      .pipe(take(1))
+      .subscribe(options => {
+        return this.modal
+          .create({
+            component: RaceSettingsPage,
+            componentProps: options,
+          })
+          .then((modal: HTMLIonModalElement) => {
+            modal.onDidDismiss().then((detail: { data: RaceOptions }) => {
+              if (detail.data) {
+                this.settings.setQualifyingSettings(detail.data).then(() => {
+                  return this.nav.navigateRoot('rms/qualifying');
+                });
+              }
             });
-          }
-        });
-        modal.present();
+            return modal.present();
+          });
       });
-    });
   }
 
-  startRace() {
-    this.settings.getRaceSettings().pipe(take(1)).subscribe((options) => {
-      return this.modal.create({
-        component: RaceSettingsPage,
-        componentProps: options
-      }).then(modal => {
-        modal.onDidDismiss().then(detail => {
-          if (detail.data) {
-            this.settings.setRaceSettings(detail.data).then(() => {
-              this.nav.navigateRoot('rms/race');
+  startRace(): void {
+    this.settings
+      .getRaceSettings()
+      .pipe(take(1))
+      .subscribe((options: RaceOptions) => {
+        return this.modal
+          .create({
+            component: RaceSettingsPage,
+            componentProps: options,
+          })
+          .then(modal => {
+            modal.onDidDismiss().then((detail: { data: RaceOptions }) => {
+              if (detail.data) {
+                this.settings.setRaceSettings(detail.data).then(() => {
+                  return this.nav.navigateRoot('rms/race');
+                });
+              }
             });
-          }
-        });
-        modal.present();
+            return modal.present();
+          });
       });
-    });
   }
 
-  onExitApp() {
-    this.alert.show({
-      message: 'Exit Open Lap?',
-      buttons: [{
-        text: 'Cancel',
-        role: 'cancel',
-      }, {
-        text: 'OK',
-        handler: () => this.exit()
-      }]
-    });
+  onExitApp(): void {
+    this.alert
+      .show({
+        message: 'Exit Open Lap?',
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'OK',
+            handler: () => this.exit(),
+          },
+        ],
+      })
+      .catch((e: Error) => this.logger.error(e));
   }
 
-  private exit() {
+  private exit(): void {
     this.logger.info('Exiting application');
     if (this.cu) {
-      this.cu.disconnect().catch(error => {
-        this.logger.error('Error disconnecting from CU:', error);
-      }).then(() => {
-        this.app.exit();
-      });
+      this.cu
+        .disconnect()
+        .catch(error => {
+          this.logger.error('Error disconnecting from CU:', error);
+        })
+        .then(() => {
+          this.app.exit();
+        });
     } else {
       this.app.exit();
     }

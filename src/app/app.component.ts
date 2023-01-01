@@ -1,32 +1,28 @@
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
-
 import { TranslateService } from '@ngx-translate/core';
-
-import { Subscription, from } from 'rxjs';
+import { from, Observable, Subscription } from 'rxjs';
 import { first, mergeMap, timeout } from 'rxjs/operators';
 
-import { AppSettings } from './app-settings';
+import { AppSettings, Connection } from './app-settings';
 import { Backend } from './backend';
-import { ControlUnit } from './carrera';
+import { ControlUnit, Peripheral } from './carrera';
 import { AppService, ControlUnitService, I18nAlertService, I18nToastService, LoggingService, SpeechService } from './services';
 
-const CONNECTION_TIMEOUT = 3000;
+const CONNECTION_TIMEOUT: number = 3000;
 
-const STATE_MESSAGES = {
-  'connected': 'Connected to {{device}}',
-  'connecting': 'Connecting to {{device}}',
-  'disconnected': 'Disconnected from {{device}}'
+const STATE_MESSAGES: { connected: string; connecting: string; disconnected: string } = {
+  connected: 'Connected to {{device}}',
+  connecting: 'Connecting to {{device}}',
+  disconnected: 'Disconnected from {{device}}',
 };
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html'
+  templateUrl: 'app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
-
-  private stateSubscription = new Subscription();
+  private stateSubscription: Subscription = new Subscription();
 
   constructor(
     private app: AppService,
@@ -38,90 +34,107 @@ export class AppComponent implements OnInit, OnDestroy {
     private speech: SpeechService,
     private toast: I18nToastService,
     private translate: TranslateService,
-    private updates: SwUpdate)
-  {
+    private updates: SwUpdate
+  ) {
     // enable/disable fullscreen mode based on screen orientation, *not* WebView orientation
-    window.addEventListener("orientationchange", () => {
-      app.enableFullScreen(window.screen.orientation.type.startsWith('landscape'));
+    window.addEventListener('orientationchange', () => {
+      app.enableFullScreen(window.screen.orientation.type.startsWith('landscape')).catch((e: Error) => this.logger.error(e));
     });
-    if (window.screen.orientation && window.screen.orientation.type) {
-      app.enableFullScreen(window.screen.orientation.type.startsWith('landscape'));
+    if (window.screen.orientation?.type) {
+      app.enableFullScreen(window.screen.orientation.type.startsWith('landscape')).catch((e: Error) => this.logger.error(e));
     }
-    app.keepAwake(true);
+    app.keepAwake(true).catch((e: Error) => this.logger.error(e));
     translate.setDefaultLang('en');
   }
 
-  ngOnInit() {
-    this.settings.getOptions().subscribe(options => {
-      this.logger.setDebugEnabled(options.debug);
-      this.setLanguage(options.language);
-    });
-    this.settings.getConnection().subscribe(connection => {
-      this.stateSubscription.unsubscribe();
-      if (connection && connection.name) {
-        this.logger.info('Connecting to ' + connection.name);
-        // TODO: scan only backend responsible for this connection? provide backend.get()?
-        from(this.backends.map(backend => backend.scan())).pipe(
-          mergeMap(device => device),
-          first(device => device.equals(connection)),
-          timeout(CONNECTION_TIMEOUT)
-        ).toPromise().then(device => {
-          const cu = new ControlUnit(device, connection);
-          this.stateSubscription = cu.getState().subscribe(state => this.showConnectionToast(state, cu.peripheral.name));
-          this.cu.next(cu);
-          cu.connect();
-        }).catch(error => {
-          this.logger.error('Error connecting to ' + connection.name + ':', error);
-        }).then(() => {
-          this.app.hideSplashScreen();
+  ngOnInit(): void {
+    this.settings.create().then(() => {
+      this.settings.getOptions().subscribe(options => {
+        this.logger.setDebugEnabled(options.debug);
+        this.setLanguage(options.language);
+      });
+      this.settings.getConnection().subscribe((connection: Connection) => {
+        this.stateSubscription.unsubscribe();
+        if (connection?.name) {
+          this.logger.info('Connecting to ' + connection.name);
+          // TODO: scan only backend responsible for this connection? provide backend.get()?
+          from(this.backends.map(backend => backend.scan()))
+            .pipe(
+              mergeMap((device: Observable<Peripheral>) => device),
+              first((device: Peripheral) => device.equals(connection)),
+              timeout(CONNECTION_TIMEOUT)
+            )
+            .toPromise()
+            .then((device: Peripheral) => {
+              const cu = new ControlUnit(device, connection);
+              this.stateSubscription = cu.getState().subscribe(state => this.showConnectionToast(state, cu.peripheral.name));
+              this.cu.next(cu);
+              return cu.connect();
+            })
+            .catch(error => {
+              this.logger.error('Error connecting to ' + connection.name + ':', error);
+            })
+            .then(() => {
+              return this.app.hideSplashScreen();
+            });
+        } else {
+          this.app.hideSplashScreen().catch((e: Error) => this.logger.error(e));
+          this.cu.next(null);
+        }
+      });
+      // TODO: wait for app becoming stable
+      if (this.updates.isEnabled) {
+        this.logger.info('Service worker enabled');
+        this.updates.versionUpdates.subscribe(() => {
+          this.logger.info('Update available');
+          this.update();
         });
       } else {
-        this.app.hideSplashScreen();
-        this.cu.next(null);
+        this.logger.debug('Service worker not enabled');
       }
     });
-    // TODO: wait for app becoming stable
-    if (this.updates.isEnabled) {
-      this.logger.info("Service worker enabled");
-      this.updates.available.subscribe(() => {
-        this.logger.info("Update available");
-        this.update();
-      });
-    } else {
-      this.logger.debug("Service worker not enabled");
-    }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.cu.next(null);
   }
-  
-  private update() {
-    this.alert.show({
-      message: 'A new version of Open Lap is available. Do you want to update now?',
-      buttons: [{
-        text: 'Cancel',
-        role: 'cancel',
-      }, {
-        text: 'OK',
-        handler: () => document.location.reload()
-      }]
-    });
+
+  private update(): void {
+    this.alert
+      .show({
+        message: 'A new version of Open Lap is available. Do you want to update now?',
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'OK',
+            handler: () => document.location.reload(),
+          },
+        ],
+      })
+      .catch((e: Error) => this.logger.error(e));
   }
 
-  private setLanguage(language: string) {
-    this.translate.use(language || this.translate.getBrowserLang() || 'en').toPromise().then(obj => {
-      this.translate.get('notifications.locale').toPromise().then(locale => {
-        this.speech.setLocale(locale);
+  private setLanguage(language: string): void {
+    this.translate
+      .use(language || this.translate.getBrowserLang() || 'en')
+      .toPromise()
+      .then(_ => {
+        this.translate
+          .get('notifications.locale')
+          .toPromise()
+          .then(locale => {
+            this.speech.setLocale(locale);
+          });
       });
-    });
   }
 
-  private showConnectionToast(state: string, device: string) {
+  private showConnectionToast(state: string, device: string): void {
     const message = STATE_MESSAGES[state] || 'Connecting to {{device}}';
-    this.toast.showShortCenter(message, {device: device}).catch(error => {
+    this.toast.showShortCenter(message, { device: device }).catch(error => {
       this.logger.error('Error showing toast', error);
     });
   }
-
 }

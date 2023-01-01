@@ -1,41 +1,51 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { take } from 'rxjs/operators';
-
 import { TranslateService } from '@ngx-translate/core';
+import { take } from 'rxjs/operators';
 
 import { AppSettings, Driver } from '../app-settings';
 import { LoggingService, SpeechService } from '../services';
+import { ItemReorderEventDetail } from '@ionic/angular';
 
 @Component({
-  templateUrl: 'drivers.page.html'
+  selector: 'drivers',
+  templateUrl: 'drivers.page.html',
 })
 export class DriversPage implements OnDestroy, OnInit {
-
   drivers: Driver[];
 
   readonly placeholder = 'Driver {{number}}';
 
-  constructor(private logger: LoggingService, private settings: AppSettings, private speech: SpeechService, private translate: TranslateService) {}
+  constructor(
+    private logger: LoggingService,
+    private settings: AppSettings,
+    private speech: SpeechService,
+    private translate: TranslateService
+  ) {}
 
-  ngOnInit() {
-    this.settings.getDrivers().pipe(take(1)).toPromise().then(drivers => {
-      this.drivers = drivers;
-    }).catch(error => {
-      this.logger.error('Error getting drivers', error);
-    });
+  ngOnInit(): void {
+    this.settings
+      .getDrivers()
+      .pipe(take(1))
+      .toPromise()
+      .then((drivers: Driver[]) => {
+        this.drivers = drivers;
+      })
+      .catch(error => {
+        this.logger.error('Error getting drivers', error);
+      });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.settings.setDrivers(this.drivers).catch(error => {
       this.logger.error('Error setting drivers', error);
     });
   }
 
-  getCode(name: string, id: number) {
-    let chars = name.replace(/\W/g, '').toUpperCase();  // TODO: proper Unicode support
-    let codes = this.drivers.filter((_, index) => index !== id).map(obj => obj.code);
+  getCode(name: string, id: number): string {
+    const chars = name.replace(/\W/g, '').toUpperCase(); // TODO: proper Unicode support
+    const codes = this.drivers.filter((_, index) => index !== id).map(obj => obj.code);
     for (let n = 2; n < chars.length; ++n) {
-      let s = chars.substr(0, 2) + chars.substr(n, 1);
+      const s = chars.substring(0, 2) + chars.substring(n, 1);
       if (codes.indexOf(s) === -1) {
         return s;
       }
@@ -43,9 +53,9 @@ export class DriversPage implements OnDestroy, OnInit {
     return undefined;
   }
 
-  reorderItems(event: any) {
-    let colors = this.drivers.map(driver => driver.color);
-    let element = this.drivers[event.detail.from];
+  reorderItems(event: CustomEvent<ItemReorderEventDetail>): void {
+    const colors = this.drivers.map(driver => driver.color);
+    const element = this.drivers[event.detail.from];
     this.drivers.splice(event.detail.from, 1);
     this.drivers.splice(event.detail.to, 0, element);
     colors.forEach((color, index) => {
@@ -54,18 +64,17 @@ export class DriversPage implements OnDestroy, OnInit {
     event.detail.complete();
   }
 
-  speak(id: number) {
+  speak(id: number): void {
     this.getDriverName(id).then(name => {
       this.speech.speak(name);
-    })
+    });
   }
 
-  private getDriverName(id) {
-    if (this.drivers[id] && this.drivers[id].name) {
+  private getDriverName(id): Promise<string> {
+    if (this.drivers[id]?.name) {
       return Promise.resolve(this.drivers[id].name);
     } else {
-      return this.translate.get(this.placeholder, {number: id + 1}).toPromise();
+      return this.translate.get(this.placeholder, { number: id + 1 }).toPromise();
     }
   }
-
 }

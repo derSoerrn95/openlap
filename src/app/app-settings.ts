@@ -1,19 +1,36 @@
 import { Injectable } from '@angular/core';
-
-import { SettingsService } from './services/settings.service';
-
+import { Storage } from '@ionic/storage';
+import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-const COLORS = [
-  '#ff0000',
-  '#00ff00',
-  '#0000ff',
-  '#ffff00',
-  '#ff00ff',
-  '#00ffff',
-  '#ffffff',
-  '#cccccc'
-];
+import { SettingsService } from './services';
+
+export enum SessionType {
+  RACE = 'race',
+  QUALIFYING = 'qualifying',
+  PRACTICE = 'practice',
+}
+
+const COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#cccccc'];
+
+export interface Notifications {
+  falsestart: Notification;
+  finished: Notification;
+  finallap: Notification;
+  bestlap: Notification;
+  bests1: Notification;
+  bests2: Notification;
+  bests3: Notification;
+  fuel2: Notification;
+  fuel1: Notification;
+  fuel0: Notification;
+  pitenter: Notification;
+  pitexit: Notification;
+  yellowflag: Notification;
+  greenflag: Notification;
+  endsession: Notification;
+  newleader: Notification;
+}
 
 const NOTIFICATIONS = {
   falsestart: true,
@@ -31,7 +48,7 @@ const NOTIFICATIONS = {
   yellowflag: true,
   greenflag: true,
   endsession: true,
-  newleader: true
+  newleader: true,
 };
 
 export class Connection {
@@ -66,114 +83,117 @@ export interface Driver {
 }
 
 export class RaceOptions {
-  constructor(public mode: 'practice' | 'qualifying' | 'race') {
+  constructor(mode: SessionType) {
+    this.mode = mode;
     switch (mode) {
-    case 'practice':
-      this.laps = 0;
-      this.time = 0;
-      this.auto = true;
-      this.pace = true;
-      break;
-    case 'qualifying':
-      this.laps = 0;
-      this.time = 3 * 60 * 1000;
-      break;
-    case 'race':
-      this.laps = 30;
-      this.time = 0;
-      break;
+      case SessionType.PRACTICE:
+        this.laps = 0;
+        this.time = 0;
+        this.auto = true;
+        this.pace = true;
+        break;
+      case SessionType.QUALIFYING:
+        this.laps = 0;
+        this.time = 3 * 60 * 1000;
+        break;
+      case SessionType.RACE:
+        this.laps = 30;
+        this.time = 0;
+        break;
     }
   }
+
+  mode: SessionType;
+
   laps: number;
   time: number;
-  pause: false;
+  pause = false;
   slotmode = false;
   drivers?: number;
   auto = false;
   pace = false;
-  minLapTime = 500;  // FIXME: Configurable?
+  minLapTime = 500; // FIXME: Configurable?
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AppSettings {
-
   constructor(private settings: SettingsService) {}
 
-  clear() {
+  clear(): Promise<void> {
     return this.settings.clear();
   }
 
-  getConnection() {
-    return this.settings.observe('connection').pipe(
-      map(value => Object.assign(new Connection(), value))
-    );
+  async create(): Promise<Storage> {
+    return this.settings.createDB();
   }
 
-  setConnection(value: Connection) {
+  getConnection(): Observable<Connection> {
+    return this.settings.observe('connection').pipe(map(value => Object.assign(new Connection(), value)));
+  }
+
+  setConnection(value: Connection): Promise<void> {
     return this.settings.set('connection', value);
   }
 
-  getDrivers() {
+  getDrivers(): Observable<Driver[]> {
     return this.settings.observe('drivers').pipe(
-      map(value => {
-        const result = new Array<Driver>(8);
-        for (let i = 0; i != result.length; ++i) {
-          result[i] = Object.assign({color: COLORS[i]}, value ? value[i] : null);
+      map((value: Driver[]) => {
+        const result: Driver[] = new Array<Driver>(8);
+        for (let i = 0; i < result.length; i++) {
+          result[i] = Object.assign({ color: COLORS[i] }, value ? value[i] : null);
         }
         return result;
       })
     );
   }
 
-  setDrivers(value: Array<Driver>) {
+  setDrivers(value: Driver[]): Promise<void> {
     return this.settings.set('drivers', value);
   }
 
-  getNotifications() {
+  getNotifications(): Observable<Notifications> {
     return this.settings.observe('notifications').pipe(
-      map(value => {
-        const result = {};
-        for (let key of Object.keys(NOTIFICATIONS)) {
-          result[key] = Object.assign({enabled: NOTIFICATIONS[key]}, value ? value[key] : null);
+      map((value: Notifications) => {
+        const result: Notifications = {} as Notifications;
+        for (const key of Object.keys(NOTIFICATIONS)) {
+          result[key] = Object.assign({ enabled: NOTIFICATIONS[key] }, value ? value[key] : null);
         }
         return result;
       })
     );
   }
 
-  setNotifications(value: {[key: string]: Notification}) {
+  setNotifications(value: Notifications): Promise<void> {
     return this.settings.set('notifications', value);
   }
 
-  getOptions() {
-    return this.settings.observe('options').pipe(
-      map(value => Object.assign(new Options(), value))
-    );
+  getOptions(): Observable<Options> {
+    return this.settings.observe('options').pipe(map((value: Options) => Object.assign(new Options(), value)));
   }
 
-  setOptions(value: Options) {
+  setOptions(value: Options): Promise<void> {
     return this.settings.set('options', value);
   }
 
-  getQualifyingSettings() {
-    return this.settings.observe('qualifying').pipe(
-      map(value => Object.assign(new RaceOptions('qualifying'), value))
-    );
+  getQualifyingSettings(): Observable<RaceOptions> {
+    return this.settings
+      .observe(SessionType.QUALIFYING)
+      .pipe(map((value: RaceOptions) => Object.assign(new RaceOptions(SessionType.QUALIFYING), value)));
   }
 
-  setQualifyingSettings(value: any) {
-    return this.settings.set('qualifying', value);
+  setQualifyingSettings(value: RaceOptions): Promise<void> {
+    return this.settings.set(SessionType.QUALIFYING, value);
   }
 
-  getRaceSettings() {
-    return this.settings.observe('race').pipe(
-      map(value => Object.assign(new RaceOptions('race'), value))
-    );
+  getRaceSettings(): Observable<RaceOptions> {
+    return this.settings
+      .observe(SessionType.RACE)
+      .pipe(map((value: RaceOptions) => Object.assign(new RaceOptions(SessionType.RACE), value)));
   }
 
-  setRaceSettings(value: any) {
-    return this.settings.set('race', value);
+  setRaceSettings(value: RaceOptions): Promise<void> {
+    return this.settings.set(SessionType.RACE, value);
   }
 }

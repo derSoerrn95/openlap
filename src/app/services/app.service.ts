@@ -1,7 +1,4 @@
 import { Injectable } from '@angular/core';
-
-import { Platform } from '@ionic/angular';
-
 import { AndroidFullScreen } from '@ionic-native/android-full-screen';
 import { AppVersion } from '@ionic-native/app-version';
 import { Device } from '@ionic-native/device';
@@ -9,36 +6,44 @@ import { Insomnia } from '@ionic-native/insomnia';
 import { SocialSharing } from '@ionic-native/social-sharing';
 import { SplashScreen } from '@ionic-native/splash-screen';
 import { StatusBar } from '@ionic-native/status-bar';
-
+import { Platform } from '@ionic/angular';
 import { Observable } from 'rxjs';
 import { distinctUntilChanged, map, startWith } from 'rxjs/operators';
+import { BackButtonEmitter } from '@ionic/angular/providers/platform';
+
+export type DeviceInfo = {
+  isVirtual: boolean;
+  manufacturer: string;
+  model: string;
+  platform: string;
+  version: string;
+};
 
 export enum Orientation {
-  Portrait = "portrait",
-  Landscape = "landscape"
+  Portrait = 'portrait',
+  Landscape = 'landscape',
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AppService {
-  
-  static PORTRAIT = Orientation.Portrait;
-  static LANDSCAPE = Orientation.Landscape;
+  static readonly PORTRAIT = Orientation.Portrait;
+  static readonly LANDSCAPE = Orientation.Landscape;
 
-  backButton: Observable<any>;
+  backButton: BackButtonEmitter;
 
   orientation: Observable<Orientation>;
 
   exit: () => void = undefined;
 
-  share: (subject: string, message: string) => Promise<void> = undefined;
-  
+  share: (subject: string, message: string) => Promise<unknown> = undefined;
+
   constructor(private platform: Platform) {
     this.backButton = platform.backButton;
 
     // TODO: check if necessary...
-    platform.ready().then(readySource => {
+    platform.ready().then((readySource: string) => {
       if (readySource === 'cordova') {
         StatusBar.styleDefault();
       }
@@ -53,31 +58,31 @@ export class AppService {
     }
 
     this.orientation = platform.resize.pipe(
-      startWith(undefined),
-      map(() => platform.isPortrait() ? Orientation.Portrait : Orientation.Landscape),
+      startWith(null as string), // to fix deprecation warning
+      map(() => (platform.isPortrait() ? Orientation.Portrait : Orientation.Landscape)),
       distinctUntilChanged()
     );
   }
 
-  async getName() {
+  async getName(): Promise<string> {
     if (this.isCordova() && AppVersion) {
       await this.platform.ready();
       return AppVersion.getAppName();
     } else {
-      return "App";  // FIXME - generic?
+      return 'App'; // FIXME - generic?
     }
   }
 
-  async getVersion() {
+  async getVersion(): Promise<string> {
     if (this.isCordova() && AppVersion) {
       await this.platform.ready();
       return AppVersion.getVersionNumber();
     } else {
-      return "Web";
+      return 'Web';
     }
   }
 
-  async getDeviceInfo() {
+  async getDeviceInfo(): Promise<DeviceInfo> {
     if (this.isCordova() && Device) {
       await this.platform.ready();
       return {
@@ -94,61 +99,61 @@ export class AppService {
         manufacturer: '',
         model: '',
         platform: 'browser',
-        version: ''
+        version: '',
       };
     }
   }
 
-  async enableFullScreen(value: boolean) {
+  async enableFullScreen(value: boolean): Promise<void> {
     if (this.isCordova() && this.isAndroid() && AndroidFullScreen) {
       await this.platform.ready();
       if (value) {
-        AndroidFullScreen.immersiveMode();
+        await AndroidFullScreen.immersiveMode();
       } else {
-        AndroidFullScreen.showSystemUI();
+        await AndroidFullScreen.showSystemUI();
       }
     }
   }
 
-  async hideSplashScreen() {
+  async hideSplashScreen(): Promise<void> {
     if (this.isCordova() && SplashScreen) {
       await this.platform.ready();
       SplashScreen.hide();
     }
   }
 
-  async keepAwake(value: boolean) {
+  async keepAwake(value: boolean): Promise<void> {
     if (this.isCordova() && Insomnia) {
       await this.platform.ready();
       if (value) {
-        Insomnia.keepAwake();
+        await Insomnia.keepAwake();
       } else {
-        Insomnia.allowSleepAgain();
+        await Insomnia.allowSleepAgain();
       }
     }
   }
-  
-  isAndroid() {
+
+  isAndroid(): boolean {
     return this.platform.is('android');
   }
 
-  isCordova() {
+  isCordova(): boolean {
     return this.platform.is('cordova');
   }
 
-  private async doShare(subject: string, message: string) {
+  private async doShare(subject: string, message: string): Promise<unknown> {
     await this.platform.ready();
     if (SocialSharing) {
       return SocialSharing.shareWithOptions({
         message: message,
-        subject: subject
+        subject: subject,
       });
     }
   }
 
-  private async doExit() {
+  private async doExit(): Promise<void> {
     await this.platform.ready();
-    if (navigator['app'] && navigator['app'].exitApp) {
+    if (navigator['app']?.exitApp) {
       navigator['app'].exitApp();
     }
   }

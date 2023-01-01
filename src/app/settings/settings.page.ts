@@ -1,16 +1,17 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 
+import { AppSettings, Options } from '../app-settings';
+import { I18nAlertService } from '../services';
+
 import { AboutPage } from './about.page';
 import { ConnectionPage } from './connection.page';
 import { LicensesPage } from './licenses.page';
 import { LoggingPage } from './logging.page';
 import { NotificationsPage } from './notifications.page';
-
-import { AppSettings, Options } from '../app-settings';
-import { I18nAlertService } from '../services';
+import { Subscription } from 'rxjs';
 
 @Component({
-  templateUrl: 'settings.page.html'
+  templateUrl: 'settings.page.html',
 })
 export class SettingsPage implements OnDestroy, OnInit {
   aboutPage = AboutPage;
@@ -19,36 +20,43 @@ export class SettingsPage implements OnDestroy, OnInit {
   loggingPage = LoggingPage;
   notificationsPage = NotificationsPage;
 
-  options = new Options();
+  options: Options = new Options();
 
-  private subscription: any;
+  private subscription: Subscription;
 
   constructor(private alert: I18nAlertService, private settings: AppSettings) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.subscription = this.settings.getOptions().subscribe(options => {
       this.options = options;
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.subscription.unsubscribe();
   }
 
-  reset() {
-    this.alert.show({
-      message: 'Reset all user settings to default values?',
-      buttons: [{
-        text: 'Cancel',
-        role: 'cancel',
-      }, {
-        text: 'OK',
-        handler: () => { this.settings.clear(); }
-      }]
-    });
+  reset(): void {
+    this.alert
+      .show({
+        message: 'Reset all user settings to default values?',
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'OK',
+            handler: () => {
+              this.settings.clear().catch((e: Error) => console.log(e));
+            },
+          },
+        ],
+      })
+      .catch((e: Error) => console.log(e));
   }
 
-  update() {
-    this.settings.setOptions(this.options);
+  update(): void {
+    this.settings.setOptions(this.options).catch((e: Error) => console.log(e));
   }
 }

@@ -12,13 +12,9 @@
 <ion-content>
   <ion-list>
     <ion-item *ngFor="let driver of drivers; let id = index">
-      <number slot="start" [color]="driver.color">
-        {{id + 1}}
-      </number>
-      <ion-label>
-        {{driver.name || (placeholder | translate:{number: id + 1})}}
-      </ion-label>
-      <input [(ngModel)]="driver.color" type="color" [style.zIndex]="100">
+      <number slot="start" [color]="driver.color"> {{ id + 1 }} </number>
+      <ion-label> {{ driver.name || (placeholder | translate : { number: id + 1 }) }} </ion-label>
+      <input [(ngModel)]="driver.color" type="color" [style.zIndex]="100" />
     </ion-item>
   </ion-list>
 </ion-content>

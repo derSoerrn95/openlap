@@ -30,72 +30,84 @@
   </ion-segment>
   <ng-container *ngIf="drivers | async as d">
     <ion-item *ngFor="let model of models">
-      <number slot="start" [color]="d[model.id]?.color">
-        {{model.id + 1}}
-      </number>
+      <number slot="start" [color]="d[model.id]?.color"> {{ model.id + 1 }} </number>
       <ng-container [ngSwitch]="orientation | async">
-        <ion-label *ngSwitchCase="'landscape'">
-          {{d[model.id]?.name || (placeholder | translate:{number: model.id + 1})}}
-        </ion-label>
-        <ion-label *ngSwitchCase="'portrait'">
-          {{d[model.id]?.code || '#' + (model.id + 1)}}
-        </ion-label>
+        <ion-label *ngSwitchCase="'landscape'"> {{ d[model.id]?.name || (placeholder | translate : { number: model.id + 1 }) }} </ion-label>
+        <ion-label *ngSwitchCase="'portrait'"> {{ d[model.id]?.code || "#" + (model.id + 1) }} </ion-label>
       </ng-container>
       <ng-container [ngSwitch]="(options | async)?.cumode">
         <ng-container *ngSwitchCase="false">
           <ng-container [ngSwitch]="type">
-            <ion-range *ngSwitchCase="'speed'" min="0" max="15" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.speed == null}"
+            <ion-range
+              *ngSwitchCase="'speed'"
+              min="0"
+              max="15"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.speed === null }"
               [value]="model.speed"
-              (ionChange)="update('speed', $event.detail.value, locked ? undefined : model.id)"
-              >
+              (ionChange)="update('speed', $event.detail.value, locked ? undefined : model.id)">
             </ion-range>
-            <ion-range *ngSwitchCase="'brake'" min="0" max="15" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.brake == null}"
+            <ion-range
+              *ngSwitchCase="'brake'"
+              min="0"
+              max="15"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.brake === null }"
               [value]="model.brake"
-              (ionChange)="update('brake', $event.detail.value, locked ? undefined : model.id)"
-              >
+              (ionChange)="update('brake', $event.detail.value, locked ? undefined : model.id)">
             </ion-range>
-            <ion-range *ngSwitchCase="'fuel'" min="0" max="15" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.fuel == null}"
+            <ion-range
+              *ngSwitchCase="'fuel'"
+              min="0"
+              max="15"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.fuel === null }"
               [value]="model.fuel"
-              (ionChange)="update('fuel', $event.detail.value, locked ? undefined : model.id)"
-              >
+              (ionChange)="update('fuel', $event.detail.value, locked ? undefined : model.id)">
             </ion-range>
           </ng-container>
-          <ion-badge slot="end" class="tuning" [color]="model[type] == undefined ? 'medium' : 'primary'">
-            {{model[type] == undefined ? '?' : model[type]}}
+          <ion-badge slot="end" class="tuning" [color]="model[type] === undefined ? 'medium' : 'primary'">
+            {{ model[type] === undefined ? "?" : model[type] }}
           </ion-badge>
         </ng-container>
         <ng-container *ngSwitchCase="true">
           <ng-container [ngSwitch]="type">
-            <ion-range *ngSwitchCase="'speed'" min="1" max="10" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.speed == null}"
+            <ion-range
+              *ngSwitchCase="'speed'"
+              min="1"
+              max="10"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.speed === null }"
               [value]="toCU.speed[model.speed]"
-              (ionChange)="update('speed', fromCU.speed[$event.detail.value], locked ? undefined : model.id)"
-              >
+              (ionChange)="update('speed', fromCU.speed[$event.detail.value], locked ? undefined : model.id)">
             </ion-range>
-            <ion-range *ngSwitchCase="'brake'" min="1" max="10" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.brake == null}"
+            <ion-range
+              *ngSwitchCase="'brake'"
+              min="1"
+              max="10"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.brake === null }"
               [value]="toCU.brake[model.brake]"
-              (ionChange)="update('brake', fromCU.brake[$event.detail.value], locked ? undefined : model.id)"
-              >
+              (ionChange)="update('brake', fromCU.brake[$event.detail.value], locked ? undefined : model.id)">
             </ion-range>
-            <ion-range *ngSwitchCase="'fuel'" min="1" max="10" snaps="true"
-              [disabled]="!(connected | async)"
-              [ngClass]="{'pristine': model.fuel == null}"
+            <ion-range
+              *ngSwitchCase="'fuel'"
+              min="1"
+              max="10"
+              snaps="true"
+              [disabled]="(connected | async) === false"
+              [ngClass]="{ pristine: model.fuel === null }"
               [value]="toCU.fuel[model.fuel]"
-              (ionChange)="update('fuel', fromCU.fuel[$event.detail.value], locked ? undefined : model.id)"
-              >
+              (ionChange)="update('fuel', fromCU.fuel[$event.detail.value], locked ? undefined : model.id)">
             </ion-range>
           </ng-container>
-          <ion-badge slot="end" class="tuning" [color]="model[type] == undefined ? 'medium' : 'primary'">
-            {{model[type] == undefined ? '?' : toCU[type][model[type]]}}
+          <ion-badge slot="end" class="tuning" [color]="model[type] === undefined ? 'medium' : 'primary'">
+            {{ model[type] === undefined ? "?" : toCU[type][model[type]] }}
           </ion-badge>
         </ng-container>
       </ng-container>

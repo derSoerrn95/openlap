@@ -16,12 +16,8 @@
           <span *ngIf="lapcount | async as laps; else race">
             <span *ngIf="laps.count; else race">
               <span *ngIf="laps.total; then race1; else race2"></span>
-              <ng-template #race1>
-                {{ 'Lap {' + '{count}' + '}/{' + '{total}' + '}' | translate:laps}}
-              </ng-template>
-              <ng-template #race2>
-                {{ 'Lap {' + '{count}' + '}' | translate:laps}}
-              </ng-template>
+              <ng-template #race1> {{ "Lap {" + "{count}" + "}/{" + "{total}" + "}" | translate : laps }} </ng-template>
+              <ng-template #race2> {{ "Lap {" + "{count}" + "}" | translate : laps }} </ng-template>
             </span>
           </span>
           <ng-template #race>
@@ -30,8 +26,8 @@
         </ng-container>
       </span>
       <checkerboard cols="9" rows="5" *ngIf="session?.finished | async"></checkerboard>
-      <span *ngIf="session?.timer && !(session?.finished | async)" style="float: right">
-        {{session.timer | async | time:'h:mm:ss'}}
+      <span *ngIf="session?.timer && (session?.finished | async) === false" style="float: right">
+        {{ session.timer | async | time : "h:mm:ss" }}
       </span>
     </ion-title>
     <ion-buttons slot="end">
@@ -47,27 +43,23 @@
 
 <ion-content>
   <div *ngIf="cu | async; else nocu">
-    <leaderboard [mode]="mode" [items]="items | async" [pitlane]="pitlane | async" [sectors]="sectors | async">
-    </leaderboard>
+    <leaderboard [mode]="mode" [items]="items | async" [pitlane]="pitlane | async" [sectors]="sectors | async"></leaderboard>
   </div>
   <ng-template #nocu>
     <div class="ion-padding">
       <h1 translate>Welcome to Open Lap!</h1>
-      <p translate>
-        Please select a Control Unit device from the menu.
-      </p>
+      <p translate>Please select a Control Unit device from the menu.</p>
       <p translate *ngIf="android; else checkble">
-        If no devices are listed, please make sure that Bluetooth and Location (for scanning Bluetooth devices) are enabled or you are using a suitable serial to USB OTG converter cable.
+        If no devices are listed, please make sure that Bluetooth and Location (for scanning Bluetooth devices) are enabled or you are using
+        a suitable serial to USB OTG converter cable.
       </p>
     </div>
     <ng-template #checkble>
-      <p translate>
-        If no devices are listed, please make sure that Bluetooth is enabled.
-      </p>
+      <p translate>If no devices are listed, please make sure that Bluetooth is enabled.</p>
     </ng-template>
   </ng-template>
 </ion-content>
 
 <ion-footer>
-  <race-control [cu]="cu | async" [yellowFlag]="session?.yellowFlag | async" (onYellowFlag)="toggleYellowFlag()"></race-control>
+  <race-control [cu]="cu | async" [yellowFlag]="session?.yellowFlag | async" (yellowFlagChange)="toggleYellowFlag()"></race-control>
 </ion-footer>

@@ -1,8 +1,8 @@
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, Routes } from '@angular/router';
-
+import { Routes } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 
 import { SharedModule } from '../shared';
@@ -18,49 +18,33 @@ import { SettingsPage } from './settings.page';
 const routes: Routes = [
   {
     path: '',
-    component: SettingsPage
+    component: SettingsPage,
   },
   {
     path: 'about',
-    component: AboutPage
+    component: AboutPage,
   },
   {
     path: 'logging',
-    component: LoggingPage
+    component: LoggingPage,
   },
   {
     path: 'licenses',
-    component: LicensesPage
+    component: LicensesPage,
   },
   {
     path: 'connection',
-    component: ConnectionPage
+    component: ConnectionPage,
   },
   {
     path: 'notifications',
-    component: NotificationsPage
-  }
+    component: NotificationsPage,
+  },
 ];
 
 @NgModule({
-  declarations: [
-    AboutPage,
-    ConnectionPage,
-    LicensesPage,
-    LoggingMenu,
-    LoggingPage,
-    NotificationsPage,
-    SettingsPage
-  ],
-  exports: [
-    RouterModule
-  ],
-  imports: [
-    CommonModule,
-    FormsModule,
-    IonicModule,
-    RouterModule.forChild(routes),
-    SharedModule
-  ]
+  declarations: [AboutPage, ConnectionPage, LicensesPage, LoggingMenu, LoggingPage, NotificationsPage, SettingsPage],
+  exports: [RouterModule],
+  imports: [CommonModule, FormsModule, IonicModule, RouterModule.forChild(routes), SharedModule],
 })
 export class SettingsModule {}

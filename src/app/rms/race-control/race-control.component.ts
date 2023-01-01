@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-
-import { Observable, combineLatest, of } from 'rxjs';
+import { combineLatest, Observable, of } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
 
-import { ControlUnit, ControlUnitButton } from '../../carrera';
+import { ControlUnit, ControlUnitButton, ControlUnitState } from '../../carrera';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -11,8 +10,7 @@ import { ControlUnit, ControlUnitButton } from '../../carrera';
   styleUrls: ['race-control.component.scss'],
   templateUrl: 'race-control.component.html',
 })
-export class RaceControlComponent  {
-
+export class RaceControlComponent {
   private controlUnit: ControlUnit;
 
   lights: Observable<number>;
@@ -25,13 +23,9 @@ export class RaceControlComponent  {
       // TODO: share this?
       const start = cu.getStart().pipe(distinctUntilChanged());
       const state = cu.getState();
-      this.lights = start.pipe(
-        map(value => (value == 1 ? 5 : value > 1 && value < 7 ? value - 1 : 0))
-      );
-      this.blink = combineLatest(start, state).pipe(
-        map(([value, state]) => (value >= 8 || state !== 'connected'))
-      );
-      this.keys = cu.getVersion().then(version => (version >= '5331'));
+      this.lights = start.pipe(map((value: number) => (value === 1 ? 5 : value > 1 && value < 7 ? value - 1 : 0)));
+      this.blink = combineLatest([start, state]).pipe(map(([value, state]) => value >= 8 || state !== ControlUnitState.CONNECTED));
+      this.keys = cu.getVersion().then(version => version >= '5331');
     } else {
       this.lights = of(0);
       this.blink = of(false);
@@ -40,23 +34,21 @@ export class RaceControlComponent  {
     this.controlUnit = cu;
   }
 
-  get cu(): ControlUnit { 
-    return this.controlUnit; 
+  get cu(): ControlUnit {
+    return this.controlUnit;
   }
 
   @Input() yellowFlag: boolean;
 
-  @Output() onYellowFlag = new EventEmitter();
+  @Output() yellowFlagChange = new EventEmitter();
 
-  constructor() {}
- 
-  togglePaceCar() {
+  togglePaceCar(): void {
     if (this.cu) {
       this.cu.trigger(ControlUnitButton.PACE_CAR);
     }
   }
 
-  toggleStart() {
+  toggleStart(): void {
     if (this.cu) {
       this.cu.trigger(ControlUnitButton.START);
     }

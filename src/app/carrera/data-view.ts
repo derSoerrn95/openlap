@@ -1,15 +1,15 @@
 export class DataView {
-  private array: Uint8Array;
+  private readonly array: Uint8Array;
 
-  get buffer() {
+  get buffer(): ArrayBufferLike {
     return this.array.buffer;
   }
 
-  get byteLength() {
+  get byteLength(): number {
     return this.array.byteLength;
   }
 
-  get byteOffset() {
+  get byteOffset(): number {
     return this.array.byteOffset;
   }
 
@@ -23,15 +23,15 @@ export class DataView {
     }
   }
 
-  getUint4(byteOffset: number) {
+  getUint4(byteOffset: number): number {
     return this.array[byteOffset] & 0xf;
   }
 
-  getUint8(byteOffset: number) {
+  getUint8(byteOffset: number): number {
     return (this.array[byteOffset] & 0xf) | ((this.array[byteOffset + 1] & 0xf) << 4);
   }
 
-  getUint32(byteOffset: number) {
+  getUint32(byteOffset: number): number {
     let value = 0;
     value |= (this.array[byteOffset + 0] & 0xf) << 24;
     value |= (this.array[byteOffset + 1] & 0xf) << 28;
@@ -44,10 +44,10 @@ export class DataView {
     return value;
   }
 
-  getUint8Array(byteOffset: number, byteLength: number): ArrayLike<number> {
+  getUint8Array(byteOffset: number, byteLength: number): Uint8Array {
     // TypedArray.map() not supported on Android
-    let array = new Uint8Array(byteLength);
-    for (let i = 0; i != byteLength; ++i) {
+    const array = new Uint8Array(byteLength);
+    for (let i = 0; i !== byteLength; ++i) {
       array[i] = this.array[byteOffset + i] & 0x0f;
     }
     return array;
@@ -62,15 +62,15 @@ export class DataView {
     this.array[byteOffset + 1] = (value >> 4) | 0x30;
   }
 
-  toString(byteOffset?: number, byteLength?: number) {
+  toString(byteOffset?: number, byteLength?: number): string {
     return String.fromCharCode.apply(null, this.subarray(byteOffset, byteLength));
   }
 
   // FIXME: should use values, only
-  static from(cmd: string, ...values: number[]) {
-    let array = new Uint8Array(values.length + 2);
-    let crc = array[0] = cmd.charCodeAt(0);
-    for (let i = 0; i != values.length; ++i) {
+  static from(cmd: string, ...values: number[]): DataView {
+    const array = new Uint8Array(values.length + 2);
+    let crc = (array[0] = cmd.charCodeAt(0));
+    for (let i = 0; i !== values.length; ++i) {
       const value = values[i];
       array[i + 1] = 0x30 | value;
       crc += value;
@@ -79,13 +79,13 @@ export class DataView {
     return new DataView(array.buffer);
   }
 
-  static fromString(s: string) {
+  static fromString(s: string): DataView {
     // TypedArray.from() not supported on iOS
     const array = new Uint8Array(s.split('').map(c => c.charCodeAt(0)));
     return new DataView(array.buffer);
   }
 
-  private subarray(byteOffset?: number, byteLength?: number) {
+  private subarray(byteOffset?: number, byteLength?: number): Uint8Array {
     if (byteLength !== undefined) {
       return this.array.subarray(byteOffset, byteOffset + byteLength);
     } else if (byteOffset) {

@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, Input, OnChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 
-function createCheckerboardPath(width: number, height: number) {
+function createCheckerboardPath(width: number, height: number): string {
   const path = [];
   for (let x = 0; x < width; x += 2) {
     path.push('M', x, ',0V', height, 'H', x + 1, 'V0Z');
@@ -18,14 +18,13 @@ function createCheckerboardPath(width: number, height: number) {
   templateUrl: 'checkerboard.component.html',
 })
 export class CheckerboardComponent implements OnChanges {
-
   @Input() cols: number;
 
   @Input() rows: number;
 
   path: string;
 
-  ngOnChanges(_: any) {
+  ngOnChanges(_simpleChange: SimpleChanges): void {
     this.path = createCheckerboardPath(this.cols, this.rows);
   }
 }

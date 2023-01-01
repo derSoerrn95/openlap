@@ -1,7 +1,5 @@
 import { Injectable } from '@angular/core';
-
 import { TextToSpeech, TTSOptions } from '@ionic-native/text-to-speech/ngx';
-
 import { Platform } from '@ionic/angular';
 
 import { LoggingService } from './logging.service';
@@ -13,7 +11,7 @@ class WebSpeech {
 
   speak(textOrOptions: string | TTSOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const utterance = this['__utterance__'] = new SpeechSynthesisUtterance();
+      const utterance = (this['__utterance__'] = new SpeechSynthesisUtterance());
       if (typeof textOrOptions === 'string') {
         utterance.text = textOrOptions;
       } else {
@@ -26,7 +24,7 @@ class WebSpeech {
       };
       utterance.onerror = e => {
         reject(e);
-      }
+      };
       try {
         this.speech.speak(utterance);
       } catch (e) {
@@ -52,7 +50,7 @@ class DummySpeech {
     logger.info('Speech not supported on this platform');
   }
 
-  speak(textOrOptions: string | TTSOptions): Promise<void> {
+  speak(_textOrOptions: string | TTSOptions): Promise<void> {
     return Promise.resolve();
   }
 
@@ -62,10 +60,9 @@ class DummySpeech {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SpeechService {
-
   private locale = 'en-US';
 
   private promise = Promise.resolve();
@@ -87,32 +84,40 @@ export class SpeechService {
     }
   }
 
-  setLocale(locale: string) {
+  setLocale(locale: string): void {
     this.locale = locale;
   }
 
-  setRate(rate: number) {
+  setRate(rate: number): void {
     this.rate = rate;
   }
 
-  speak(message: string) {
+  speak(message: string): void {
     // TODO: message priorities?
-    if (message != this.lastMessage) {
+    if (message !== this.lastMessage) {
       this.lastMessage = message;
       this.pending++;
-      this.promise = this.promise.then(() => {
-        if (--this.pending === 0) {
-          return this.tts.speak({text: message, locale: this.locale || 'en-us', rate: this.rate}).then(() => {
-            if (this.pending === 0) {
-              this.lastMessage = null;
-            }
-          });
-        } else {
-          this.logger.warn('Speech cancelled: ' + message);
-        }
-      }).catch((error) => {
-        this.logger.error('Speech error', error);
-      });
+      this.promise = this.promise
+        .then(() => {
+          if (--this.pending === 0) {
+            return this.tts
+              .speak({
+                text: message,
+                locale: this.locale || 'en-us',
+                rate: this.rate,
+              })
+              .then(() => {
+                if (this.pending === 0) {
+                  this.lastMessage = null;
+                }
+              });
+          } else {
+            this.logger.warn('Speech cancelled: ' + message);
+          }
+        })
+        .catch(error => {
+          this.logger.error('Speech error', error);
+        });
     } else {
       this.logger.info('Speech duplicate dismissed: ' + message);
     }

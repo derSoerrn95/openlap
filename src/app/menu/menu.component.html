@@ -3,11 +3,11 @@
     <ion-list lines="none">
       <ion-item [color]="cu ? 'primary' : 'danger'" (click)="onMenuToggle()">
         <ion-label>
-          <h1>{{cu ? cu.peripheral.name : ('No connection' | translate)}}</h1>
-          <h2>{{cu?.peripheral.address}}</h2>
+          <h1>{{ cu ? cu.peripheral.name : ("No connection" | translate) }}</h1>
+          <h2>{{ cu?.peripheral.address }}</h2>
           <h3 *ngIf="cu">
             <span translate>Firmware version</span>
-            {{version | async | cuversion}}
+            {{ version | async | cuversion }}
           </h3>
         </ion-label>
         <ion-icon slot="end" [name]="mode ? 'caret-down-sharp' : 'caret-up-sharp'"></ion-icon>

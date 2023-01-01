@@ -4,13 +4,12 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'gauge',
   styleUrls: ['gauge.component.scss'],
-  templateUrl: 'gauge.component.html'
+  templateUrl: 'gauge.component.html',
 })
 export class GaugeComponent {
+  @Input() min = 0;
 
-    @Input() min: number = 0;
+  @Input() max = 1.0;
 
-    @Input() max: number = 1.0;
-
-    @Input() value: number;
+  @Input() value: number;
 }

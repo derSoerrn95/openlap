@@ -12,34 +12,25 @@
 <ion-content>
   <ion-item>
     <ion-thumbnail slot="start">
-      <img src="assets/icons/icon-128x128.png">
+      <img src="assets/icons/icon-128x128.png" alt="icon" />
     </ion-thumbnail>
     <ion-label>
-        <h1>Open Lap {{version | async}}</h1>
-        <a href="https://github.com/tkem/openlap/" target="_system">
-          https://github.com/tkem/openlap/
-        </a>
+      <h1>Open Lap {{ version | async }}</h1>
+      <a href="https://github.com/tkem/openlap/" target="_system"> https://github.com/tkem/openlap/ </a>
     </ion-label>
   </ion-item>
   <ion-item>
-    <ion-label class="ion-text-wrap">
-      Copyright &copy; 2016-2022 Thomas Kemmer.
-    </ion-label>
+    <ion-label class="ion-text-wrap"> Copyright &copy; 2016-2022 Thomas Kemmer.</ion-label>
+  </ion-item>
+  <ion-item>
+    <ion-label class="ion-text-wrap"> Licensed under the Apache License, Version 2.0.</ion-label>
   </ion-item>
   <ion-item>
     <ion-label class="ion-text-wrap">
-      Licensed under the Apache License, Version 2.0.
+      <span translate>Translations</span>: Haarman (Nederlands), SdiF (Italiano), Maikeru (Español), nico12 (Français).
     </ion-label>
   </ion-item>
   <ion-item>
-    <ion-label class="ion-text-wrap">
-      <span translate>Translations</span>:
-      Haarman (Nederlands), SdiF (Italiano), Maikeru (Español), nico12 (Français).
-    </ion-label>
-  </ion-item>
-  <ion-item>
-    <ion-label class="ion-text-wrap">
-      <span translate>iOS support</span>: softyde, elliot2extreme.
-    </ion-label>
+    <ion-label class="ion-text-wrap"><span translate>iOS support</span>: softyde, elliot2extreme.</ion-label>
   </ion-item>
 </ion-content>

@@ -1,56 +1,59 @@
 import { Injectable } from '@angular/core';
 
-export enum LogLevel { DEBUG, INFO, WARNING, ERROR };
+export enum LogLevel {
+  DEBUG,
+  INFO,
+  WARNING,
+  ERROR,
+}
 
 export class LogRecord {
-  level: LogLevel;  // TODO: as string?
+  level: LogLevel; // TODO: as string?
   time: number;
-  args: any[];
-};
+  args: unknown[];
+}
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class LoggingService {
+  private level: LogLevel = LogLevel.INFO;
 
-  private level = LogLevel.INFO;
-
-  private limit = 50;  // TODO: config
+  private limit = 50; // TODO: config
 
   // TODO: Observable?
   records = new Array<LogRecord>();
 
-  isDebugEnabled() {
+  isDebugEnabled(): boolean {
     return this.level === LogLevel.DEBUG;
   }
 
-  setDebugEnabled(value: boolean) {
+  setDebugEnabled(value: boolean): void {
     this.level = value ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
-  debug(...args: any[]) {
+  debug(...args: unknown[]): void {
     this.log(LogLevel.DEBUG, args);
   }
 
-  info(...args: any[]) {
+  info(...args: unknown[]): void {
     this.log(LogLevel.INFO, args);
   }
 
-  warn(...args: any[]) {
+  warn(...args: unknown[]): void {
     this.log(LogLevel.WARNING, args);
   }
 
-  error(...args: any[]) {
+  error(...args: unknown[]): void {
     this.log(LogLevel.ERROR, args);
   }
 
-  clear() {
+  clear(): void {
     this.records.length = 0;
   }
 
-  private log(level: LogLevel, args: any[]) {
+  private log(level: LogLevel, args: unknown[]): void {
     if (level >= this.level) {
-      console.log.apply(console, args);
       while (this.records.length >= this.limit) {
         this.records.shift();
       }

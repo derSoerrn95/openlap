@@ -12,6 +12,6 @@ import { WebBluetoothBackend } from './web-bluetooth';
     { provide: Backend, useClass: DemoBackend, multi: true },
     { provide: Backend, useClass: SerialBackend, multi: true },
     { provide: Backend, useClass: WebBluetoothBackend, multi: true },
-  ]
+  ],
 })
 export class BackendModule {}

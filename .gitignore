@@ -1,3 +1,4 @@
+/.angular/cache
 .gradle/
 .sourcemaps/
 .vscode/
@@ -7,6 +8,9 @@ plugins/
 www/
 build.json
 .*.json
+!.eslintrc.json
+!.prettierrc.json
 *.log
 *.tmp
 *.tmp.*
+/.idea/

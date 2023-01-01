@@ -1,6 +1,20 @@
-import { BehaviorSubject , ConnectableObservable , Observable, Subject , Subscription, concat, timer } from 'rxjs';
-
-import { concatMap, distinctUntilChanged, filter, map, publish, publishReplay, refCount, retryWhen, scan, share, shareReplay, take, tap, timeout } from 'rxjs/operators';
+import { BehaviorSubject, concat, ConnectableObservable, Observable, Subject, Subscription, timer } from 'rxjs';
+import {
+  concatMap,
+  distinctUntilChanged,
+  filter,
+  map,
+  publish,
+  publishReplay,
+  refCount,
+  retryWhen,
+  scan,
+  share,
+  shareReplay,
+  take,
+  tap,
+  timeout,
+} from 'rxjs/operators';
 
 import { DataView } from './data-view';
 import { Peripheral } from './peripheral';
@@ -14,6 +28,14 @@ const POLL_COMMAND = DataView.fromString('?');
 const RESET_COMMAND = DataView.fromString('=10');
 const VERSION_COMMAND = DataView.fromString('0');
 
+export type Triple = [number, number, number];
+
+export enum ControlUnitState {
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+}
+
 export enum ControlUnitButton {
   ESC = 1,
   PACE_CAR = 1,
@@ -22,7 +44,7 @@ export enum ControlUnitButton {
   SPEED = 5,
   BRAKE = 6,
   FUEL = 7,
-  CODE = 8
+  CODE = 8,
 }
 
 export class Settings {
@@ -30,10 +52,9 @@ export class Settings {
   requestTimeout = REQUEST_TIMEOUT;
   minReconnectDelay = MIN_RECONNECT_DELAY;
   maxReconnectDelay = MAX_RECONNECT_DELAY;
-};
+}
 
 export class ControlUnit {
-
   private connection: Subject<ArrayBuffer>;
 
   private subscription: Subscription;
@@ -44,27 +65,25 @@ export class ControlUnit {
 
   private status: Observable<DataView>;
 
-  private state = new BehaviorSubject<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  private state = new BehaviorSubject<ControlUnitState>(ControlUnitState.DISCONNECTED);
 
   private version: Promise<string> = null;
 
   constructor(public peripheral: Peripheral, private settings: Settings) {
     this.connection = this.peripheral.connect({
-      next: () => this.connection.next(POLL_COMMAND.buffer)
+      next: () => this.connection.next(POLL_COMMAND.buffer),
     });
-    const sharedConnection = this.connection.pipe(share());  // FIXME: concat does not define order of (un)subscribe
-    const timedConnection = concat(
+    const sharedConnection = this.connection.pipe(share()); // FIXME: concat does not define order of (un)subscribe
+    const timedConnection: Observable<ArrayBuffer> = concat(
       sharedConnection.pipe(
         timeout(settings.connectionTimeout),
         take(1),
-        tap(() => this.state.next('connected'))
+        tap(() => this.state.next(ControlUnitState.CONNECTED))
       ),
-      sharedConnection.pipe(
-        timeout(settings.requestTimeout)
-      )
+      sharedConnection.pipe(timeout(settings.requestTimeout))
     );
     this.data = timedConnection.pipe(
-      retryWhen(errors => {
+      retryWhen((errors: Observable<Error>) => {
         return this.doReconnect(errors);
       }),
       tap(() => {
@@ -76,7 +95,7 @@ export class ControlUnit {
       publish()
     ) as ConnectableObservable<DataView>;
     this.status = this.data.pipe(
-      filter((view) => {
+      filter((view: DataView) => {
         return view.byteLength >= 16 && view.toString(0, 2) === '?:';
       }),
       publishReplay(1),
@@ -84,34 +103,31 @@ export class ControlUnit {
     );
   }
 
-  connect() {
-    this.state.next('connecting');
+  connect(): Promise<void> {
+    this.state.next(ControlUnitState.CONNECTING);
     this.subscription = this.data.connect();
     return Promise.resolve();
   }
 
-  disconnect() {
+  disconnect(): Promise<void> {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
     return Promise.resolve();
   }
 
-  reconnect() {
-    return new Promise<void>(resolve => {
-      this.disconnect();
-      setTimeout(() => {
-        this.connect();
+  async reconnect(): Promise<void> {
+    await this.disconnect();
+    return new Promise<void>((resolve: (value: PromiseLike<void> | void) => void) => {
+      setTimeout(async () => {
+        await this.connect();
         resolve();
       }, this.settings.minReconnectDelay);
     });
   }
 
-  getState(): Observable<'disconnected' | 'connecting' | 'connected'> {
-    return this.state.asObservable().pipe(
-      distinctUntilChanged(),
-      shareReplay()
-    );
+  getState(): Observable<ControlUnitState> {
+    return this.state.asObservable().pipe(distinctUntilChanged(), shareReplay());
   }
 
   getFuel(): Observable<ArrayLike<number>> {
@@ -130,112 +146,114 @@ export class ControlUnit {
     return this.status.pipe(map((data: DataView) => data.getUint8(12)));
   }
 
-  getTimer(): Observable<[number, number, number]> {
+  getTimer(): Observable<Triple> {
     return this.data.pipe(
-      filter(view => {
+      filter((view: DataView) => {
         // TODO: check CRC
         return view.byteLength >= 12 && view.toString(0, 1) === '?' && view.toString(1, 1) !== ':';
       }),
-      filter(view => {
+      filter((view: DataView) => {
         const id = view.toString(1, 1);
         return id >= '1' && id <= '8';
       }),
-      map(view => {
+      map((view: DataView) => {
         // tuples are never inferred
-        return <[number, number, number]>[view.getUint4(1) - 1, view.getUint32(2), view.getUint4(10)];
+        return [view.getUint4(1) - 1, view.getUint32(2), view.getUint4(10)] as Triple;
       }),
-      distinctUntilChanged((a, b) => a[0] === b[0] && a[1] === b[1])
+      distinctUntilChanged((a: Triple, b: Triple) => a[0] === b[0] && a[1] === b[1])
     );
   }
 
   getVersion(): Promise<string> {
     if (!this.version) {
-      this.version = this.data.pipe(
-        filter(view => view.byteLength == 6 && view.toString(0, 1) == '0'),
-        map(view => view.toString(1, 4)),
-        take(1)
-      ).toPromise()
+      this.version = this.data
+        .pipe(
+          filter((view: DataView) => view.byteLength === 6 && view.toString(0, 1) === '0'),
+          map((view: DataView) => view.toString(1, 4)),
+          take(1)
+        )
+        .toPromise();
       this.requests.push(VERSION_COMMAND);
     }
     return this.version;
   }
 
-  reset() {
+  reset(): void {
     this.requests.push(RESET_COMMAND);
   }
 
-  setLap(value: number) {
+  setLap(value: number): void {
     this.setLapHi(value >> 4);
     this.setLapLo(value & 0xf);
   }
 
-  setLapHi(value: number) {
+  setLapHi(value: number): void {
     this.set(17, 7, value);
   }
 
-  setLapLo(value: number) {
+  setLapLo(value: number): void {
     this.set(18, 7, value);
   }
 
-  setPosition(id: number, pos: number) {
+  setPosition(id: number, pos: number): void {
     this.set(6, id, pos);
   }
 
-  clearPosition() {
+  clearPosition(): void {
     this.set(6, 0, 9);
   }
 
-  setMask(value: number) {
+  setMask(value: number): void {
     this.requests.push(DataView.from(':', value & 0xf, value >> 4));
   }
 
-  setSpeed(id: number, value: number) {
+  setSpeed(id: number, value: number): void {
     this.set(0, id, value, 2);
   }
 
-  setBrake(id: number, value: number) {
+  setBrake(id: number, value: number): void {
     this.set(1, id, value, 2);
   }
 
-  setFuel(id: number, value: number) {
+  setFuel(id: number, value: number): void {
     this.set(2, id, value, 2);
   }
 
-  setFinished(id: number) {
+  setFinished(id: number): void {
     this.set(7, id, 1);
   }
 
-  toggleStart() {
+  toggleStart(): void {
     this.trigger(ControlUnitButton.START);
   }
 
-  trigger(button: ControlUnitButton) {
+  trigger(button: ControlUnitButton): void {
     this.requests.push(DataView.fromString('T' + String.fromCharCode(0x30 | button)));
   }
 
-  private set(address: number, id: number, value: number, repeat = 1) {
+  private set(address: number, id: number, value: number, repeat = 1): void {
     const args = [address & 0x0f, (address >> 4) | (id << 1), value, repeat];
     this.requests.push(DataView.from('J', ...args));
   }
 
-  private poll() {
+  private poll(): void {
     const request = this.requests.shift() || POLL_COMMAND;
     this.connection.next(request.buffer);
   }
 
-  private doReconnect(errors: Observable<any>) {
+  private doReconnect(errors: Observable<Error>): Observable<number> {
     const state = this.state;
     return errors.pipe(
       //tap(error => this.logger.error('Device error:', error)),
-      scan((count, error) => {
-        return state.value === 'connected' ? 0 : count + 1;
+      scan((count: number, _error: Error) => {
+        return state.value === ControlUnitState.CONNECTED ? 0 : count + 1;
       }, 0),
-      tap(() => state.next('disconnected')),
+      tap(() => state.next(ControlUnitState.DISCONNECTED)),
       concatMap(count => {
         const backoff = this.settings.minReconnectDelay * Math.pow(1.5, count);
         return timer(Math.min(backoff, this.settings.maxReconnectDelay));
       }),
-      tap(() => state.next('connecting'))
+      tap(() => state.next(ControlUnitState.CONNECTING))
     );
   }
 }

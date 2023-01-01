@@ -1,63 +1,57 @@
 // FIXME: also import zone-patch-rxjs?
 import 'zone.js/dist/zone-patch-cordova';
 
-import { ErrorHandler, Injectable, NgModule } from '@angular/core';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { ErrorHandler, Injectable, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 import { ServiceWorkerModule, SwRegistrationOptions } from '@angular/service-worker';
-
-import { IonicModule, IonicRouteStrategy, Platform } from '@ionic/angular';
-
 import { BLE } from '@ionic-native/ble/ngx';
 import { Serial } from '@ionic-native/serial/ngx';
 import { TextToSpeech } from '@ionic-native/text-to-speech/ngx';
-
-import { IonicStorageModule } from '@ionic/storage';
-
-import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
+import { IonicModule, IonicRouteStrategy, Platform } from '@ionic/angular';
+import { IonicStorageModule } from '@ionic/storage-angular';
+import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
+import { environment } from '../environments/environment';
+
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
 import { BackendModule } from './backend';
 import { DriversModule } from './drivers';
 import { MenuModule } from './menu';
 import { RmsModule } from './rms';
+import { LoggingService } from './services';
 import { SharedModule } from './shared';
 import { TuningModule } from './tuning';
 
-import { LoggingService } from './services';
-
-import { AppComponent } from './app.component';
-import { AppRoutingModule } from './app-routing.module';
-
-import { environment } from '../environments/environment';
-
 @Injectable()
 export class LoggingErrorHandler implements ErrorHandler {
-
   constructor(private logger: LoggingService) {}
 
-  handleError(error: any) {
+  handleError(error: Error): void {
     this.logger.error('Error:', error);
   }
 }
 
 // AoT requires an exported function for factories
-export function createTranslateLoader(http: HttpClient) {
-    return new TranslateHttpLoader(http, './assets/i18n/', '.json');
+export function createTranslateLoader(http: HttpClient): TranslateHttpLoader {
+  return new TranslateHttpLoader(http, './assets/i18n/', '.json');
 }
 
-export function swRegistrationOptions(platform: Platform) {
+export function swRegistrationOptions(platform: Platform): {
+  enabled: boolean;
+  registrationStrategy: string;
+} {
   return {
     enabled: !platform.is('cordova') && environment.production,
-    registrationStrategy: 'registerImmediately'
-  }
+    registrationStrategy: 'registerImmediately',
+  };
 }
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
+  declarations: [AppComponent],
   imports: [
     BrowserModule,
     HttpClientModule,
@@ -67,8 +61,8 @@ export function swRegistrationOptions(platform: Platform) {
       loader: {
         provide: TranslateLoader,
         useFactory: createTranslateLoader,
-        deps: [HttpClient]
-      }
+        deps: [HttpClient],
+      },
     }),
     BackendModule,
     DriversModule,
@@ -77,7 +71,7 @@ export function swRegistrationOptions(platform: Platform) {
     SharedModule,
     TuningModule,
     AppRoutingModule,
-    ServiceWorkerModule.register('ngsw-worker.js')
+    ServiceWorkerModule.register('ngsw-worker.js'),
   ],
   providers: [
     BLE,
@@ -88,9 +82,9 @@ export function swRegistrationOptions(platform: Platform) {
     {
       provide: SwRegistrationOptions,
       useFactory: swRegistrationOptions,
-      deps: [Platform]
+      deps: [Platform],
     },
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
 })
 export class AppModule {}

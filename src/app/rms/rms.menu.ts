@@ -1,100 +1,110 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-
 import { NavParams, PopoverController } from '@ionic/angular';
 
 import { AppSettings, Options } from '../app-settings';
-
 import { I18nAlertService } from '../services';
+import { Subscription } from 'rxjs';
+
+export type Params = {
+  mode: string;
+  active: boolean;
+  restart: () => void;
+  cancel: () => void;
+};
 
 @Component({
   templateUrl: 'rms.menu.html',
 })
-export class RmsMenu implements OnDestroy, OnInit  {
-
+export class RmsMenu implements OnDestroy, OnInit {
   options = new Options();
 
-  params: {mode: string, active: boolean, restart: any, cancel: any};
+  params: Params;
 
-  private subscription: any;
+  private subscription: Subscription;
 
-  constructor(
-    private alert: I18nAlertService,
-    private settings: AppSettings,
-    private popover: PopoverController,
-    params: NavParams
-  ) {
-    this.params = <any>params.data;  // FIXME
+  constructor(private alert: I18nAlertService, private settings: AppSettings, private popover: PopoverController, params: NavParams) {
+    this.params = params.data as Params; // FIXME
   }
 
-  get sectors() {
+  get sectors(): boolean {
     return this.options.sectors;
   }
 
-  set sectors(value) {
+  set sectors(value: boolean) {
     this.options.sectors = value;
-    this.settings.setOptions(this.options);
-    this.dismiss();
+    this.settings.setOptions(this.options).catch((e: Error) => console.log(e));
+    this.dismiss().catch((e: Error) => console.log(e));
   }
 
-  get fixedOrder() {
+  get fixedOrder(): boolean {
     return this.options.fixedorder;
   }
 
-  set fixedOrder(value) {
+  set fixedOrder(value: boolean) {
     this.options.fixedorder = value;
-    this.settings.setOptions(this.options);
-    this.dismiss();
+    this.settings.setOptions(this.options).catch((e: Error) => console.log(e));
+    this.dismiss().catch((e: Error) => console.log(e));
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.subscription = this.settings.getOptions().subscribe(options => {
       this.options = options;
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.subscription.unsubscribe();
   }
 
-  onRestart() {
+  onRestart(): void {
     this.dismiss().then(() => {
       if (this.params.active) {
-        this.alert.show({
-          message: 'Restart ' + this.params.mode + '?',
-          buttons: [{
-            text: 'Cancel',
-            role: 'cancel',
-          }, {
-            text: 'OK',
-            handler: () => this.params.restart()
-          }]
-        });
+        this.alert
+          .show({
+            message: 'Restart ' + this.params.mode + '?',
+            buttons: [
+              {
+                text: 'Cancel',
+                role: 'cancel',
+              },
+              {
+                text: 'OK',
+                handler: () => this.params.restart(),
+              },
+            ],
+          })
+          .catch((e: Error) => console.log(e));
       } else {
         this.params.restart();
       }
     });
   }
 
-  onCancel() {
+  onCancel(): void {
     this.dismiss().then(() => {
       if (this.params.active) {
-        this.alert.show({
-          message: 'Cancel ' + this.params.mode + '?',
-          buttons: [{
-            text: 'Cancel',
-            role: 'cancel',
-          }, {
-            text: 'OK',
-            handler: () => this.params.cancel()
-          }]
-        });
+        this.alert
+          .show({
+            message: 'Cancel ' + this.params.mode + '?',
+            buttons: [
+              {
+                text: 'Cancel',
+                role: 'cancel',
+              },
+              {
+                text: 'OK',
+                handler: () => this.params.cancel(),
+              },
+            ],
+          })
+          .catch((e: Error) => console.log(e));
       } else {
         this.params.cancel();
       }
     });
   }
 
-  private dismiss() {
+  private dismiss(): Promise<boolean> {
     return this.popover.dismiss({});
   }
 }

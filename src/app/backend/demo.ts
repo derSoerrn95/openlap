@@ -1,24 +1,23 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { NextObserver, Observable, Observer, of, Subject, Subscriber } from 'rxjs';
 
-import { NextObserver, Observable, Subject, of } from 'rxjs';
-
-import { Backend } from './backend';
 import { DataView, Peripheral } from '../carrera';
 import { LoggingService } from '../services';
+
+import { Backend } from './backend';
 
 const VERSION = '5336';
 
 const TIMEOUT_RATE = 0.0001;
 const ERROR_RATE = 0.0001;
 
-function random(min: number, max: number) {
+function random(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-function toString(buffer: ArrayBuffer) {
-  let array = new Uint8Array(buffer)
-  let string = String.fromCharCode.apply(null, array);
-  return string;
+function toString(buffer: ArrayBuffer): string {
+  const array = new Uint8Array(buffer);
+  return String.fromCharCode.apply(null, array);
 }
 
 class Car {
@@ -35,18 +34,18 @@ class Car {
   private minSectorTime: number;
   private maxSectorTime: number;
   private sectors: number;
-  private timeout: any;
+  private timeout: ReturnType<typeof setTimeout>;
 
   constructor(id: string) {
     this.id = id;
-    this.fuel = this.id == '7' || this .id == '8' ? 0 : 0xff;
+    this.fuel = this.id === '7' || this.id === '8' ? 0 : 0xff;
   }
 
-  start(minSectorTime, maxSectorTime, sectors=1, delay=0) {
+  start(minSectorTime: number, maxSectorTime: number, sectors: number = 1, delay: number = 0): void {
     this.maxSectorTime = maxSectorTime;
-    if (this.id == '8') {
+    if (this.id === '8') {
       this.minSectorTime = minSectorTime + (maxSectorTime - minSectorTime) * 0.8;
-    } else if (this.id == '7') {
+    } else if (this.id === '7') {
       this.minSectorTime = minSectorTime + (maxSectorTime - minSectorTime) * 0.5;
     } else {
       this.minSectorTime = minSectorTime;
@@ -55,11 +54,11 @@ class Car {
     this.sectors = sectors;
   }
 
-  stop() {
+  stop(): void {
     clearTimeout(this.timeout);
   }
 
-  private onRefuel() {
+  private onRefuel(): void {
     this.fuel += 0x10;
     if (this.fuel >= random(0xc0, 0xf0)) {
       this.timeout = setTimeout(() => this.onNext(), this.fuelTime());
@@ -68,11 +67,11 @@ class Car {
     }
   }
 
-  private onNext() {
+  private onNext(): void {
     if (++this.sector > this.sectors) {
       this.sector = 1;
     }
-    if (this.id == '7' || this .id == '8') {
+    if (this.id === '7' || this.id === '8') {
       this.events.emit(this);
       this.timeout = setTimeout(() => this.onNext(), random(this.minSectorTime, this.maxSectorTime));
     } else {
@@ -88,68 +87,62 @@ class Car {
     }
   }
 
-  private onFuel() {
+  private onFuel(): void {
     this.pit = false;
     this.fuel = Math.max(0, this.fuel - random(0x04, 0x10));
     this.timeout = setTimeout(() => this.onNext(), this.fuelTime());
   }
 
-  private fuelTime() {
+  private fuelTime(): number {
     return random(this.minSectorTime, this.maxSectorTime) / 2;
   }
 }
 
 class DemoPeripheral implements Peripheral {
+  private start: number = Date.now();
 
-  private start = Date.now();
+  private startSequence: number = 0;
 
-  private startSequence = 0;
+  private cars: Car[] = [new Car('1'), new Car('2'), new Car('3'), new Car('4'), new Car('5'), new Car('6'), new Car('7'), new Car('8')];
 
-  private cars = [
-    new Car('1'),
-    new Car('2'),
-    new Car('3'),
-    new Car('4'),
-    new Car('5'),
-    new Car('6'),
-    new Car('7'),
-    new Car('8')
-  ];
-
-  private laps = [];
+  private laps: ArrayBuffer[] = [];
 
   private config = {
     numCars: 8,
     numSectors: 3,
     maxStartTime: 1500,
     minSectorTime: 3000,
-    maxSectorTime: 4000
+    maxSectorTime: 4000,
   };
 
-  private version: ArrayBuffer;
+  private readonly version: ArrayBuffer;
 
-  private subscriber: any;
+  private subscriber: Subscriber<ArrayBuffer>;
 
   type = 'demo';
 
   constructor(public name: string, private mode: number, private logger: LoggingService) {
     this.version = DataView.from('0', ...VERSION.split('').map(c => c.charCodeAt(0))).buffer;
-    for (let i = 0; i != this.config.numCars; ++i) {
+    for (let i = 0; i !== this.config.numCars; ++i) {
       this.cars[i].events.subscribe(car => this.laps.push(this.createLap(car.id, car.sector)));
     }
     this.startAll();
   }
 
-  connect(connected?: NextObserver<void>, disconnected?: NextObserver<void>) {
+  connect(connected?: NextObserver<void>, disconnected?: NextObserver<void>): Subject<ArrayBuffer> {
+    // return new AnonymousSubject(this.createObserver(), this.createObservable(connected, disconnected));
+    // const observable = this.createObservable(connected, disconnected);
+    // const observer = this.createObserver();
+    // return new AnonymousSubject<ArrayBuffer>(observer, observable);
     return Subject.create(this.createObserver(), this.createObservable(connected, disconnected));
   }
 
-  equals(other: Peripheral) {
-    return other && other.type === this.type && other.name == this.name;
+  equals(other: Peripheral): boolean {
+    return other && other.type === this.type && other.name === this.name;
   }
 
-  private createObservable(connected?: NextObserver<void>, disconnected?: NextObserver<void>) {
-    return new Observable<ArrayBuffer>(subscriber => {
+  private createObservable(connected?: NextObserver<void>, disconnected?: NextObserver<void>): Observable<ArrayBuffer> {
+    return new Observable<ArrayBuffer>((subscriber: Subscriber<ArrayBuffer>) => {
       this.logger.info('Creating Demo observable with mode=' + this.mode);
       this.subscriber = subscriber;
       setTimeout(() => {
@@ -163,11 +156,11 @@ class DemoPeripheral implements Peripheral {
           disconnected.next(undefined);
         }
         delete this.subscriber;
-      }
+      };
     });
   }
 
-  private createObserver() {
+  private createObserver(): Observer<ArrayBuffer> {
     return {
       next: (value: ArrayBuffer) => {
         if (Math.random() < ERROR_RATE) {
@@ -178,13 +171,13 @@ class DemoPeripheral implements Peripheral {
           return;
         }
         //console.log('Demo connection next:', toString(value));
-        if (toString(value) != '?') {
+        if (toString(value) !== '?') {
           console.log('Demo CU received ' + toString(value));
         }
-        if (toString(value) == 'T1') {
+        if (toString(value) === 'T1') {
           this.onESC();
         }
-        if (toString(value) == 'T2') {
+        if (toString(value) === 'T2') {
           this.onStart();
         }
         if (Math.random() < TIMEOUT_RATE) {
@@ -194,7 +187,7 @@ class DemoPeripheral implements Peripheral {
         setTimeout(() => {
           if (this.subscriber) {
             // console.log('Demo connection response to ' + toString(value));
-            if (toString(value) == '0') {
+            if (toString(value) === '0') {
               this.subscriber.next(this.version);
             } else {
               // TODO: command response
@@ -203,17 +196,17 @@ class DemoPeripheral implements Peripheral {
           }
         }, 100);
       },
-      error: (err: any) => {
+      error: (err: Error) => {
         console.log('Demo connection error:', err);
       },
       complete: () => {
         console.log('Demo connection complete');
         this.subscriber.complete();
-      }
+      },
     };
   }
 
-  private createLap(id: string, group = 1) {
+  private createLap(id: string, group = 1): ArrayBuffer {
     // TODO: use DataView, add CRC
     const time = Date.now() - this.start;
     return DataView.from(
@@ -231,41 +224,41 @@ class DemoPeripheral implements Peripheral {
     ).buffer;
   }
 
-  private createStatus() {
+  private createStatus(): ArrayBuffer {
     return DataView.from(
       '?',
       10,
-      (this.cars[0].fuel) >> 4 & 0xf,
-      (this.cars[1].fuel) >> 4 & 0xf,
-      (this.cars[2].fuel) >> 4 & 0xf,
-      (this.cars[3].fuel) >> 4 & 0xf,
-      (this.cars[4].fuel) >> 4 & 0xf,
-      (this.cars[5].fuel) >> 4 & 0xf,
-      (this.cars[6].fuel) >> 4 & 0xf,
-      (this.cars[7].fuel) >> 4 & 0xf,
+      (this.cars[0].fuel >> 4) & 0xf,
+      (this.cars[1].fuel >> 4) & 0xf,
+      (this.cars[2].fuel >> 4) & 0xf,
+      (this.cars[3].fuel >> 4) & 0xf,
+      (this.cars[4].fuel >> 4) & 0xf,
+      (this.cars[5].fuel >> 4) & 0xf,
+      (this.cars[6].fuel >> 4) & 0xf,
+      (this.cars[7].fuel >> 4) & 0xf,
       this.startSequence,
       this.mode,
       this.getPitMask(0, 4),
       this.getPitMask(4, 8),
-      8  // position tower display
+      8 // position tower display
     ).buffer;
   }
 
-  private getPitMask(begin, end) {
+  private getPitMask(begin: number, end: number): number {
     let mask = 0;
-    for (let i = begin; i != end; ++i) {
-      mask >>= 1
-      mask |= (this.cars[i].pit ? 8 : 0);
+    for (let i = begin; i !== end; ++i) {
+      mask >>= 1;
+      mask |= this.cars[i].pit ? 8 : 0;
     }
     return mask;
   }
 
-  private onStart() {
-    if (this.startSequence == 0) {
+  private onStart(): void {
+    if (this.startSequence === 0) {
       this.stopAll();
       this.startSequence = 1;
       //this.error('Forced error');
-    } else if (this.startSequence == 7) {
+    } else if (this.startSequence === 7) {
       this.startAll();
       this.startSequence = 0;
     } else {
@@ -274,21 +267,21 @@ class DemoPeripheral implements Peripheral {
     }
   }
 
-  private onESC() {
-    if (this.startSequence == 1) {
+  private onESC(): void {
+    if (this.startSequence === 1) {
       this.startAll();
       this.startSequence = 0;
     }
   }
 
-  private startAll() {
-    for (let i = 0; i != this.config.numCars; ++i) {
+  private startAll(): void {
+    for (let i = 0; i !== this.config.numCars; ++i) {
       this.cars[i].start(this.config.minSectorTime, this.config.maxSectorTime, this.config.numSectors, random(0, this.config.maxStartTime));
     }
   }
 
-  private stopAll() {
-    for (let i = 0; i != this.config.numCars; ++i) {
+  private stopAll(): void {
+    for (let i = 0; i !== this.config.numCars; ++i) {
       this.cars[i].stop();
     }
   }
@@ -296,7 +289,6 @@ class DemoPeripheral implements Peripheral {
 
 @Injectable()
 export class DemoBackend extends Backend {
-
   constructor(private logger: LoggingService) {
     super();
   }
@@ -304,4 +296,4 @@ export class DemoBackend extends Backend {
   scan(): Observable<Peripheral> {
     return of(new DemoPeripheral('Demo Control Unit', 0x6, this.logger));
   }
-};
+}

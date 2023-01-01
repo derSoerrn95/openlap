@@ -6,7 +6,7 @@ import { LeaderboardItem } from './leaderboard.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'leaderboard-item',
   styleUrls: ['leaderboard.component.scss'],
-  templateUrl: 'leaderboard-item.component.html'
+  templateUrl: 'leaderboard-item.component.html',
 })
 export class LeaderboardItemComponent {
   @Input() fields: string[];
@@ -14,7 +14,7 @@ export class LeaderboardItemComponent {
   @Input() ranked: LeaderboardItem[];
   @Input() best: number[];
 
-  abs(n: number) {
-    return n < 0 ? -n : n;
+  abs(n: number): number {
+    return Math.abs(n);
   }
 }
